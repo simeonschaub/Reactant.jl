@@ -6,6 +6,9 @@ abstract type RArray{T,N} <: DenseArray{T,N} end
 
 abstract type AbstractConcreteArray{T,N} <: RArray{T,N} end
 
+# Sparse Arrays
+abstract type AbstractSparseArray{T,N,F} end
+
 function Base.getproperty(x::Union{AbstractConcreteArray,AbstractConcreteNumber}, f::Symbol)
     f === :data && x.donated && error("$(typeof(x)) has already been donated!")
     return getfield(x, f)
@@ -94,6 +97,26 @@ end
 
 @leaf TracedRArray
 Adapt.parent_type(::Type{TracedRArray{T,N}}) where {T,N} = TracedRArray{T,N}
+
+## TracedSparseArray
+mutable struct TracedSparseArray{T,N,F} <: AbstractSparseArray{T,N,F}
+    paths::Tuple
+    mlir_data::Union{Nothing,MLIR.IR.Value}
+    shape::NTuple{N,Int}
+    nnz::Int
+
+    function TracedSparseArray{T,N,F}(
+        paths::Tuple, mlir_data::Union{Nothing,MLIR.IR.Value}, shape, nnz
+    ) where {T,N,F}
+        return new{T,N,F}(paths, mlir_data, Tuple(shape), nnz)
+    end
+end
+
+function repath(x::TracedSparseArray{T,N,F}, paths) where {T,N,F}
+    return TracedSparseArray{T,N,F}(paths, x.mlir_data, x.shape, x.nnz)
+end
+
+@leaf TracedSparseArray
 
 ## TracedStepRangeLen
 struct TracedStepRangeLen{T,R,S,L} <: AbstractRange{T}
@@ -799,3 +822,22 @@ function _select_client_and_device(
 
     return theclient, thedevice
 end
+
+## ConcreteSparseArray
+mutable struct ConcreteSparseArray{T, N, F, D, I <: UnionAnyConcreteRArray, V <: UnionAnyConcreteRArray} <: AbstractSparseArray{T, N, F}
+    pos::I
+    indices::I
+    values::V
+    shape::NTuple{N, Int}
+    nnz::Int
+    sharding::Sharding.ShardInfo
+    donated::Bool
+
+    function ConcreteSparseArray{T, N, F, D}(
+        pos, indices, values, shape, nnz, sharding
+    ) where {T, N, F, D}
+	return new{T, N, F, D, typeof(pos), typeof(values)}(pos, indices, values, Tuple(shape), nnz, sharding, false)
+    end
+end
+
+@leaf ConcreteSparseArray

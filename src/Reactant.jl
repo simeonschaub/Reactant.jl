@@ -211,6 +211,8 @@ include("TracedRArray.jl")
 include("TracedRange.jl")
 include("TracedRational.jl")
 include("Indexing.jl")
+include("SparseArrays.jl")
+using .SparseArrays
 
 include("ConcreteRArray.jl")
 
@@ -299,6 +301,10 @@ export ConcreteRArray,
     ConcretePJRTNumber,
     ConcreteIFRTArray,
     ConcreteIFRTNumber,
+    create_csc,
+    create_csr,
+    spmv,
+    spmm,
     @compile,
     @code_hlo,
     @code_mhlo,
